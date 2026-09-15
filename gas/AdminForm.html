@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html>
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Howling way 管理画面 - News追加</title>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic",sans-serif;
+    background:#f4f4f4;color:#222;line-height:1.6;padding:16px;
+  }
+  .wrap{max-width:480px;margin:0 auto}
+  h1{font-size:18px;margin-bottom:4px}
+  .sub{font-size:12px;color:#888;margin-bottom:20px}
+  .card{background:#fff;border-radius:10px;padding:18px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,0.08)}
+  label{display:block;font-size:13px;font-weight:600;color:#444;margin:14px 0 6px}
+  label:first-child{margin-top:0}
+  input[type=text],textarea{
+    width:100%;padding:11px 12px;border:1px solid #ccc;border-radius:8px;
+    font-size:15px;font-family:inherit;background:#fff;
+  }
+  textarea{min-height:110px;resize:vertical}
+  .checkbox-row{display:flex;align-items:center;gap:8px;margin-top:16px}
+  .checkbox-row input{width:20px;height:20px}
+  .checkbox-row label{margin:0;font-weight:500}
+  .hint{font-size:11px;color:#999;margin-top:4px}
+  button{
+    width:100%;padding:14px;border:none;border-radius:8px;font-size:15px;font-weight:700;
+    cursor:pointer;margin-top:8px;
+  }
+  .btn-primary{background:#d92c3f;color:#fff}
+  .btn-primary:disabled{background:#e9a1a9;cursor:not-allowed}
+  .btn-secondary{background:#eee;color:#333;margin-top:10px}
+  .confirm-item{padding:10px 0;border-bottom:1px solid #eee}
+  .confirm-item:last-child{border-bottom:none}
+  .confirm-key{font-size:11px;color:#999;letter-spacing:0.05em}
+  .confirm-val{font-size:15px;margin-top:2px;white-space:pre-wrap;word-break:break-word}
+  .msg{padding:14px;border-radius:8px;font-size:14px;margin-bottom:16px}
+  .msg-error{background:#fdecea;color:#c0392b}
+  .msg-success{background:#eafaf1;color:#1e8449}
+  [hidden]{display:none!important}
+  .spinner{display:inline-block;width:16px;height:16px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;animation:spin .7s linear infinite;vertical-align:-3px;margin-right:6px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .login-box{text-align:center;padding:32px 18px}
+  .login-box .desc{font-size:13px;color:#666;margin-bottom:20px}
+  #gsiButton{display:flex;justify-content:center;margin-top:8px}
+  .who{font-size:12px;color:#888;margin-bottom:14px;text-align:right}
+  .who button{width:auto;padding:6px 12px;font-size:12px;font-weight:500;background:none;color:#c0392b;margin:0;text-decoration:underline}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Howling way 管理画面</h1>
+  <div class="sub">News追加フォーム</div>
+
+  <div id="errorBox" class="msg msg-error" hidden></div>
+
+  <!-- STEP 0: ログイン -->
+  <div id="stepLogin" class="card login-box">
+    <div class="desc">許可されたGoogleアカウントでログインしてください。</div>
+    <div id="gsiButton"></div>
+    <div id="loginChecking" class="hint" hidden>確認中...</div>
+  </div>
+
+  <!-- ログイン後のみ表示 -->
+  <div id="loggedInArea" hidden>
+    <div class="who">
+      <span id="whoEmail"></span>
+      <button id="btnLogout" type="button">ログアウト</button>
+    </div>
+
+    <!-- STEP 1: 入力フォーム -->
+    <div id="stepForm" class="card">
+      <label for="f-date">日付</label>
+      <input type="text" id="f-date" placeholder="2025.07.01">
+      <div class="hint">例: 2025.07.01 の形式で入力してください</div>
+
+      <label for="f-cat">カテゴリ</label>
+      <input type="text" id="f-cat" placeholder="お知らせ / Live / Release">
+
+      <label for="f-title">タイトル<span style="color:#d92c3f">*</span></label>
+      <input type="text" id="f-title" placeholder="夏のワンマンライブ決定！">
+
+      <label for="f-body">本文<span style="color:#d92c3f">*</span></label>
+      <textarea id="f-body" placeholder="内容を入力してください（改行で段落が分かれます）"></textarea>
+
+      <label for="f-img">画像URL</label>
+      <input type="text" id="f-img" placeholder="https://... （なくてもOK）">
+
+      <div class="checkbox-row">
+        <input type="checkbox" id="f-publish" checked>
+        <label for="f-publish">公開する</label>
+      </div>
+
+      <button class="btn-primary" id="btnToConfirm">確認する</button>
+    </div>
+
+    <!-- STEP 2: 確認画面 -->
+    <div id="stepConfirm" class="card" hidden>
+      <div class="confirm-item"><div class="confirm-key">日付</div><div class="confirm-val" id="c-date"></div></div>
+      <div class="confirm-item"><div class="confirm-key">カテゴリ</div><div class="confirm-val" id="c-cat"></div></div>
+      <div class="confirm-item"><div class="confirm-key">タイトル</div><div class="confirm-val" id="c-title"></div></div>
+      <div class="confirm-item"><div class="confirm-key">本文</div><div class="confirm-val" id="c-body"></div></div>
+      <div class="confirm-item"><div class="confirm-key">画像URL</div><div class="confirm-val" id="c-img"></div></div>
+      <div class="confirm-item"><div class="confirm-key">公開設定</div><div class="confirm-val" id="c-publish"></div></div>
+
+      <button class="btn-primary" id="btnSubmit">登録する</button>
+      <button class="btn-secondary" id="btnBack">戻って修正する</button>
+    </div>
+
+    <!-- STEP 3: 完了画面 -->
+    <div id="stepDone" class="card" hidden>
+      <div class="msg msg-success" id="doneMsg"></div>
+      <button class="btn-primary" id="btnAddAnother">もう一件追加する</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ▼▼▼ Google Cloud Console で発行した「OAuthクライアントID」に置き換えてください ▼▼▼
+  // GAS側の PropertiesService に保存する OAUTH_CLIENT_ID と必ず同じ値にすること。
+  var GOOGLE_OAUTH_CLIENT_ID = 'YOUR_OAUTH_CLIENT_ID.apps.googleusercontent.com';
+  // ▲▲▲ ここまで ▲▲▲
+
+  var state = {
+    idToken: null,
+    email: null,
+    submitting: false
+  };
+
+  var els = {
+    error: document.getElementById('errorBox'),
+    stepLogin: document.getElementById('stepLogin'),
+    loginChecking: document.getElementById('loginChecking'),
+    loggedInArea: document.getElementById('loggedInArea'),
+    whoEmail: document.getElementById('whoEmail'),
+    stepForm: document.getElementById('stepForm'),
+    stepConfirm: document.getElementById('stepConfirm'),
+    stepDone: document.getElementById('stepDone'),
+    date: document.getElementById('f-date'),
+    cat: document.getElementById('f-cat'),
+    title: document.getElementById('f-title'),
+    body: document.getElementById('f-body'),
+    img: document.getElementById('f-img'),
+    publish: document.getElementById('f-publish')
+  };
+
+  function showError(msg){
+    els.error.textContent = msg;
+    els.error.hidden = false;
+    window.scrollTo(0,0);
+  }
+  function clearError(){
+    els.error.hidden = true;
+    els.error.textContent = '';
+  }
+
+  function showStep(step){
+    els.stepForm.hidden = step !== 'form';
+    els.stepConfirm.hidden = step !== 'confirm';
+    els.stepDone.hidden = step !== 'done';
+  }
+
+  function prefillDate(){
+    var d = new Date();
+    var y = d.getFullYear();
+    var m = String(d.getMonth()+1).padStart(2,'0');
+    var day = String(d.getDate()).padStart(2,'0');
+    els.date.value = y + '.' + m + '.' + day;
+  }
+
+  // --- Google Identity Services ログイン処理 ---
+  function handleCredentialResponse(response){
+    clearError();
+    els.loginChecking.hidden = false;
+
+    var idToken = response.credential;
+
+    // ここでは「ログインできたこと」しか分からない。
+    // 実際に許可された2人かどうかは、必ずGAS側(checkLogin → verifyIdentity_)で確認する。
+    google.script.run
+      .withSuccessHandler(function(res){
+        els.loginChecking.hidden = true;
+        if (!res || !res.authorized) {
+          showError('このGoogleアカウントには管理画面の利用権限がありません。許可されたアカウントでログインし直してください。');
+          return;
+        }
+        state.idToken = idToken;
+        state.email = res.email;
+        els.whoEmail.textContent = res.email + ' でログイン中';
+        els.stepLogin.hidden = true;
+        els.loggedInArea.hidden = false;
+        prefillDate();
+        showStep('form');
+      })
+      .withFailureHandler(function(err){
+        els.loginChecking.hidden = true;
+        showError('認証確認に失敗しました: ' + ((err && err.message) || String(err)));
+      })
+      .checkLogin(idToken);
+  }
+
+  window.onload = function(){
+    if (typeof google === 'undefined' || !google.accounts) {
+      showError('Googleログイン機能の読み込みに失敗しました。時間をおいて再度お試しください。');
+      return;
+    }
+    google.accounts.id.initialize({
+      client_id: GOOGLE_OAUTH_CLIENT_ID,
+      callback: handleCredentialResponse,
+      ux_mode: 'popup'
+    });
+    google.accounts.id.renderButton(
+      document.getElementById('gsiButton'),
+      { theme: 'outline', size: 'large', text: 'signin_with', width: 260 }
+    );
+  };
+
+  document.getElementById('btnLogout').addEventListener('click', function(){
+    state.idToken = null;
+    state.email = null;
+    els.loggedInArea.hidden = true;
+    els.stepLogin.hidden = false;
+    clearError();
+    if (typeof google !== 'undefined' && google.accounts) {
+      google.accounts.id.disableAutoSelect();
+    }
+  });
+
+  function collect(){
+    return {
+      date: els.date.value.trim(),
+      cat: els.cat.value.trim(),
+      title: els.title.value.trim(),
+      body: els.body.value.trim(),
+      img: els.img.value.trim(),
+      publish: els.publish.checked
+    };
+  }
+
+  document.getElementById('btnToConfirm').addEventListener('click', function(){
+    clearError();
+    var data = collect();
+    if(!data.title){ showError('タイトルを入力してください。'); return; }
+    if(!data.body){ showError('本文を入力してください。'); return; }
+
+    document.getElementById('c-date').textContent = data.date || '（未入力）';
+    document.getElementById('c-cat').textContent = data.cat || '（未入力）';
+    document.getElementById('c-title').textContent = data.title;
+    document.getElementById('c-body').textContent = data.body;
+    document.getElementById('c-img').textContent = data.img || '（未入力）';
+    document.getElementById('c-publish').textContent = data.publish ? '公開する' : '非公開';
+
+    showStep('confirm');
+    window.scrollTo(0,0);
+  });
+
+  document.getElementById('btnBack').addEventListener('click', function(){
+    clearError();
+    showStep('form');
+  });
+
+  // --- 二重送信防止 ---
+  document.getElementById('btnSubmit').addEventListener('click', function(){
+    if (state.submitting) return; // 連打・二重送信をブロック
+    clearError();
+
+    if (!state.idToken) {
+      showError('ログイン状態が確認できません。再度ログインしてください。');
+      return;
+    }
+
+    state.submitting = true;
+    var btn = this;
+    var backBtn = document.getElementById('btnBack');
+    btn.disabled = true;
+    backBtn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>登録中...';
+
+    var data = collect();
+    data.idToken = state.idToken;
+
+    google.script.run
+      .withSuccessHandler(function(res){
+        state.submitting = false;
+        btn.disabled = false;
+        backBtn.disabled = false;
+        btn.textContent = '登録する';
+        document.getElementById('doneMsg').textContent = (res && res.message) || 'Newsを登録しました。';
+        showStep('done');
+        window.scrollTo(0,0);
+      })
+      .withFailureHandler(function(err){
+        state.submitting = false;
+        btn.disabled = false;
+        backBtn.disabled = false;
+        btn.textContent = '登録する';
+        showStep('confirm');
+        showError((err && err.message) || String(err));
+      })
+      .addNews(data);
+  });
+
+  document.getElementById('btnAddAnother').addEventListener('click', function(){
+    els.date.value = '';
+    els.cat.value = '';
+    els.title.value = '';
+    els.body.value = '';
+    els.img.value = '';
+    els.publish.checked = true;
+    prefillDate();
+    showStep('form');
+  });
+</script>
+</body>
+</html>
